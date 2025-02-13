@@ -6,9 +6,8 @@ use alloy_transport_http::Http;
 use raiko_lib::clear_line;
 use reqwest_alloy::Client;
 use reth_primitives::revm_primitives::{AccountInfo, Bytecode};
-use std::{collections::HashMap, future::Future, time::Duration};
-use tokio::time::sleep;
-use tracing::trace;
+use std::collections::HashMap;
+use tracing::info;
 
 use crate::{
     interfaces::{RaikoError, RaikoResult},
@@ -20,69 +19,41 @@ use crate::{
 pub struct RpcBlockDataProvider {
     pub provider: ReqwestProvider,
     pub client: RpcClient<Http<Client>>,
-    block_number: u64,
+    block_numbers: Vec<u64>,
 }
 
 impl RpcBlockDataProvider {
-    pub fn new(url: &str, block_number: u64) -> RaikoResult<Self> {
+    /// async will be used for future preflight optimization
+    pub async fn new(url: &str, block_number: u64) -> RaikoResult<Self> {
         let url =
             reqwest::Url::parse(url).map_err(|_| RaikoError::RPC("Invalid RPC URL".to_owned()))?;
+        info!("RPC URL: {:?} block_number {}", url, block_number);
         Ok(Self {
             provider: ProviderBuilder::new().on_provider(RootProvider::new_http(url.clone())),
             client: ClientBuilder::default().http(url),
-            block_number,
+            block_numbers: vec![block_number, block_number + 1],
+        })
+    }
+
+    pub async fn new_batch(url: &str, block_numbers: Vec<u64>) -> RaikoResult<Self> {
+        assert!(
+            !block_numbers.is_empty() && block_numbers.len() > 1,
+            "batch block_numbers should have at least 2 elements"
+        );
+        let url =
+            reqwest::Url::parse(url).map_err(|_| RaikoError::RPC("Invalid RPC URL".to_owned()))?;
+        info!("BATCH RPC URL: {:?} block_number {}", url, block_numbers[0]);
+        Ok(Self {
+            provider: ProviderBuilder::new().on_provider(RootProvider::new_http(url.clone())),
+            client: ClientBuilder::default().http(url),
+            block_numbers,
         })
     }
 
     pub fn provider(&self) -> &ReqwestProvider {
         &self.provider
     }
-
-    async fn construct_and_send_batch(
-        &self,
-        blocks_to_fetch: &[(u64, bool)],
-        max_batch_size: usize,
-    ) -> RaikoResult<Vec<Block>> {
-        let mut batch = self.client.new_batch();
-        let mut requests = Vec::with_capacity(max_batch_size);
-
-        for (block_number, full) in blocks_to_fetch {
-            requests.push(Box::pin(
-                batch
-                    .add_call(
-                        "eth_getBlockByNumber",
-                        &(BlockNumberOrTag::from(*block_number), full),
-                    )
-                    .map_err(|_| {
-                        RaikoError::RPC(
-                            "Failed adding eth_getBlockByNumber call to batch".to_owned(),
-                        )
-                    })?,
-            ));
-        }
-
-        batch.send().await.map_err(|e| {
-            RaikoError::RPC(format!(
-                "Error sending batch request for block {blocks_to_fetch:?}: {e}"
-            ))
-        })?;
-
-        let mut blocks = Vec::with_capacity(max_batch_size);
-        // Collect the data from the batch
-        for request in requests {
-            blocks.push(
-                request
-                    .await
-                    .map_err(|e| RaikoError::RPC(format!("Error collecting request data: {e}")))?,
-            );
-        }
-
-        Ok(blocks)
-    }
 }
-
-const MAX_RETRIES: u32 = 3;
-const INITIAL_DELAY: Duration = Duration::from_secs(1);
 
 impl BlockDataProvider for RpcBlockDataProvider {
     async fn get_blocks(&self, blocks_to_fetch: &[(u64, bool)]) -> RaikoResult<Vec<Block>> {
@@ -90,19 +61,58 @@ impl BlockDataProvider for RpcBlockDataProvider {
 
         let max_batch_size = 32;
         for blocks_to_fetch in blocks_to_fetch.chunks(max_batch_size) {
-            let mut blocks = retry_in_case_of_error(
-                || self.construct_and_send_batch(blocks_to_fetch, max_batch_size),
-                MAX_RETRIES,
-                INITIAL_DELAY,
-            )
-            .await?;
+            let mut batch = self.client.new_batch();
+            let mut requests = Vec::with_capacity(max_batch_size);
+
+            for (block_number, full) in blocks_to_fetch {
+                requests.push(Box::pin(
+                    batch
+                        .add_call(
+                            "eth_getBlockByNumber",
+                            &(BlockNumberOrTag::from(*block_number), full),
+                        )
+                        .map_err(|_| {
+                            RaikoError::RPC(
+                                "Failed adding eth_getBlockByNumber call to batch".to_owned(),
+                            )
+                        })?,
+                ));
+            }
+
+            batch.send().await.map_err(|e| {
+                RaikoError::RPC(format!(
+                    "Error sending batch request for block {blocks_to_fetch:?}: {e}"
+                ))
+            })?;
+
+            let mut blocks = Vec::with_capacity(max_batch_size);
+            // Collect the data from the batch
+            for request in requests {
+                blocks.push(
+                    request.await.map_err(|e| {
+                        RaikoError::RPC(format!("Error collecting request data: {e}"))
+                    })?,
+                );
+            }
+
             all_blocks.append(&mut blocks);
         }
 
         Ok(all_blocks)
     }
 
-    async fn get_accounts(&self, accounts: &[Address]) -> RaikoResult<Vec<AccountInfo>> {
+    async fn get_accounts(
+        &self,
+        block_number: u64,
+        accounts: &[Address],
+    ) -> RaikoResult<Vec<AccountInfo>> {
+        info!("get_accounts block_number: {}", block_number);
+        assert!(
+            self.block_numbers.contains(&block_number),
+            "Block number {} not found in {:?}",
+            block_number,
+            self.block_numbers
+        );
         let mut all_accounts = Vec::with_capacity(accounts.len());
 
         let max_batch_size = 250;
@@ -118,7 +128,7 @@ impl BlockDataProvider for RpcBlockDataProvider {
                     batch
                         .add_call::<_, Uint<64, 1>>(
                             "eth_getTransactionCount",
-                            &(address, Some(BlockId::from(self.block_number))),
+                            &(address, Some(BlockId::from(block_number))),
                         )
                         .map_err(|_| {
                             RaikoError::RPC(
@@ -130,7 +140,7 @@ impl BlockDataProvider for RpcBlockDataProvider {
                     batch
                         .add_call::<_, Uint<256, 4>>(
                             "eth_getBalance",
-                            &(address, Some(BlockId::from(self.block_number))),
+                            &(address, Some(BlockId::from(block_number))),
                         )
                         .map_err(|_| {
                             RaikoError::RPC("Failed adding eth_getBalance call to batch".to_owned())
@@ -140,7 +150,7 @@ impl BlockDataProvider for RpcBlockDataProvider {
                     batch
                         .add_call::<_, Bytes>(
                             "eth_getCode",
-                            &(address, Some(BlockId::from(self.block_number))),
+                            &(address, Some(BlockId::from(block_number))),
                         )
                         .map_err(|_| {
                             RaikoError::RPC("Failed adding eth_getCode call to batch".to_owned())
@@ -189,7 +199,19 @@ impl BlockDataProvider for RpcBlockDataProvider {
         Ok(all_accounts)
     }
 
-    async fn get_storage_values(&self, accounts: &[(Address, U256)]) -> RaikoResult<Vec<U256>> {
+    async fn get_storage_values(
+        &self,
+        block_number: u64,
+        accounts: &[(Address, U256)],
+    ) -> RaikoResult<Vec<U256>> {
+        info!("get_storage_values block_number: {}", block_number);
+
+        assert!(
+            self.block_numbers.contains(&block_number),
+            "Block number {} not found in {:?}",
+            block_number,
+            self.block_numbers
+        );
         let mut all_values = Vec::with_capacity(accounts.len());
 
         let max_batch_size = 1000;
@@ -203,7 +225,7 @@ impl BlockDataProvider for RpcBlockDataProvider {
                     batch
                         .add_call::<_, U256>(
                             "eth_getStorageAt",
-                            &(address, key, Some(BlockId::from(self.block_number))),
+                            &(address, key, Some(BlockId::from(block_number))),
                         )
                         .map_err(|_| {
                             RaikoError::RPC(
@@ -241,6 +263,14 @@ impl BlockDataProvider for RpcBlockDataProvider {
         offset: usize,
         num_storage_proofs: usize,
     ) -> RaikoResult<MerkleProof> {
+        info!("get_merkle_proofs block_number: {}", block_number);
+
+        assert!(
+            self.block_numbers.contains(&block_number),
+            "Block number {} not found in {:?}",
+            block_number,
+            self.block_numbers
+        );
         let mut storage_proofs: MerkleProof = HashMap::new();
         let mut idx = offset;
 
@@ -248,13 +278,12 @@ impl BlockDataProvider for RpcBlockDataProvider {
 
         let batch_limit = 1000;
         while !accounts.is_empty() {
-            if cfg!(debug_assertions) {
-                raiko_lib::inplace_print(&format!(
-                    "fetching storage proof {idx}/{num_storage_proofs}..."
-                ));
-            } else {
-                trace!("Fetching storage proof {idx}/{num_storage_proofs}...");
-            }
+            #[cfg(debug_assertions)]
+            raiko_lib::inplace_print(&format!(
+                "fetching storage proof {idx}/{num_storage_proofs}..."
+            ));
+            #[cfg(not(debug_assertions))]
+            tracing::trace!("Fetching storage proof {idx}/{num_storage_proofs}...");
 
             // Create a batch for all storage proofs
             let mut batch = self.client.new_batch();
@@ -336,84 +365,5 @@ impl BlockDataProvider for RpcBlockDataProvider {
         clear_line();
 
         Ok(storage_proofs)
-    }
-}
-
-async fn retry_in_case_of_error<F, Fut, T>(
-    operation: F,
-    max_retries: u32,
-    initial_delay: Duration,
-) -> RaikoResult<T>
-where
-    F: Fn() -> Fut,
-    Fut: Future<Output = RaikoResult<T>> + Send,
-{
-    let mut delay = initial_delay;
-    let mut last_error = RaikoError::RPC("".to_owned());
-
-    for attempt in 1..=max_retries {
-        match operation().await {
-            Ok(result) => return Ok(result),
-            Err(e) => {
-                last_error = e;
-                trace!(
-                    "Batch request failed (attempt {}/{}), retrying in {:?}...",
-                    attempt,
-                    max_retries,
-                    delay
-                );
-                sleep(delay).await;
-                delay *= 2; // Exponential backoff
-            }
-        }
-    }
-
-    Err(RaikoError::RPC(format!(
-        "Failed to send batch after {max_retries} attempts: {}",
-        last_error
-    )))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::atomic::{AtomicU32, Ordering};
-
-    #[tokio::test]
-    async fn test_retry_in_case_of_error() {
-        let attempt_counter = AtomicU32::new(0);
-        let operation = || async {
-            let attempt = attempt_counter.fetch_add(1, Ordering::SeqCst);
-            if attempt < 2 {
-                Err(RaikoError::RPC("Simulated failure".to_owned()))
-            } else {
-                Ok("success")
-            }
-        };
-
-        let result = retry_in_case_of_error(
-            operation,
-            3,
-            Duration::from_millis(1), // Short delay for tests
-        )
-        .await;
-
-        assert!(result.is_ok());
-        assert_eq!(attempt_counter.load(Ordering::SeqCst), 3);
-        assert_eq!(result.unwrap(), "success");
-
-        // Test max retries exceeded
-        let attempt_counter = AtomicU32::new(0);
-        let failing_operation = || async {
-            attempt_counter.fetch_add(1, Ordering::SeqCst);
-            Err(RaikoError::RPC("Always fails".to_owned()))
-        };
-
-        let result: RaikoResult<()> =
-            retry_in_case_of_error(failing_operation, 2, Duration::from_millis(1)).await;
-
-        assert!(result.is_err());
-        assert_eq!(attempt_counter.load(Ordering::SeqCst), 2);
-        assert!(matches!(result, Err(RaikoError::RPC(_))));
     }
 }

@@ -1,8 +1,10 @@
 #![cfg(feature = "enable")]
 
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
 use raiko_lib::{
     input::{
-        AggregationGuestInput, AggregationGuestOutput, GuestInput, GuestOutput,
+        AggregationGuestInput, AggregationGuestOutput, GuestBatchInput, GuestBatchOutput, GuestInput, GuestOutput,
         ZkAggregationGuestInput,
     },
     proof_type::ProofType,
@@ -14,8 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
-    network::FulfillmentStrategy, Prover as SP1ProverTrait, SP1Proof, SP1ProofMode,
-    SP1ProofWithPublicValues, SP1VerifyingKey,
+    network::FulfillmentStrategy, NetworkProver, Prover as SP1ProverTrait, SP1Proof, SP1ProofMode,
+    SP1ProofWithPublicValues, SP1ProvingKey, SP1VerifyingKey,
 };
 use sp1_sdk::{HashableKey, ProverClient, SP1Stdin};
 use std::{borrow::BorrowMut, env, sync::Arc, time::Duration};
@@ -97,6 +99,18 @@ pub struct Sp1Response {
 
 pub struct Sp1Prover;
 
+#[derive(Clone)]
+struct Sp1ProverClient {
+    pub(crate) client: Arc<Box<dyn SP1ProverTrait<CpuProverComponents>>>,
+    pub(crate) network_client: Arc<NetworkProver>,
+    pub(crate) pk: SP1ProvingKey,
+    pub(crate) vk: SP1VerifyingKey,
+}
+
+//TODO: use prover object to save such local storage members.
+static BLOCK_PROOF_CLIENT: Lazy<DashMap<ProverMode, Sp1ProverClient>> = Lazy::new(DashMap::new);
+static AGGREGATION_CLIENT: Lazy<DashMap<ProverMode, Sp1ProverClient>> = Lazy::new(DashMap::new);
+
 impl Prover for Sp1Prover {
     async fn run(
         input: GuestInput,
@@ -107,17 +121,39 @@ impl Prover for Sp1Prover {
         let param = Sp1Param::deserialize(config.get("sp1").unwrap()).unwrap();
         let mode = param.prover.clone().unwrap_or_else(get_env_mock);
 
+        println!("param: {param:?}");
         let mut stdin = SP1Stdin::new();
         stdin.write(&input);
 
-        let network_client = Arc::new(ProverClient::builder().network().build());
-        let client: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
-            ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
-            ProverMode::Local => Box::new(ProverClient::builder().cuda().build()),
-            ProverMode::Network => Box::new(ProverClient::builder().network().build()),
-        };
+        let Sp1ProverClient {
+            client,
+            pk,
+            vk,
+            network_client,
+        } = BLOCK_PROOF_CLIENT
+            .entry(mode.clone())
+            .or_insert_with(|| {
+                let network_client = Arc::new(ProverClient::builder().network().build());
+                let base_client: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
+                    ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
+                    ProverMode::Local => Box::new(ProverClient::builder().cpu().build()),
+                    ProverMode::Network => Box::new(ProverClient::builder().network().build()),
+                };
 
-        let (pk, vk) = client.setup(ELF);
+                let client = Arc::new(base_client);
+                let (pk, vk) = client.setup(ELF);
+                info!(
+                    "new client and setup() for block {:?}.",
+                    output.header.number
+                );
+                Sp1ProverClient {
+                    client,
+                    network_client,
+                    pk,
+                    vk,
+                }
+            })
+            .clone();
 
         info!(
             "Sp1 Prover: block {:?} with vk {:?}",
@@ -243,6 +279,15 @@ impl Prover for Sp1Prover {
         Ok(())
     }
 
+    async fn batch_run(
+        input: GuestBatchInput,
+        output: &GuestBatchOutput,
+        config: &ProverConfig,
+        store: Option<&mut dyn IdWrite>,
+    ) -> ProverResult<Proof> {
+        unimplemented!("Sp1 batch run is not implemented yet");
+    }
+
     async fn aggregate(
         input: AggregationGuestInput,
         _output: &AggregationGuestOutput,
@@ -288,15 +333,44 @@ impl Prover for Sp1Prover {
         }
 
         // Generate the proof for the given program.
-        let network_client = Arc::new(ProverClient::builder().network().build());
-        let client: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
-            ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
-            ProverMode::Local => Box::new(ProverClient::builder().cuda().build()),
-            ProverMode::Network => Box::new(ProverClient::builder().network().build()),
-        };
+        let Sp1ProverClient {
+            client,
+            pk,
+            vk,
+            network_client,
+        } = AGGREGATION_CLIENT
+            .entry(param.prover.clone().unwrap_or_else(get_env_mock))
+            .or_insert_with(|| {
+                let network_client = Arc::new(ProverClient::builder().network().build());
+                let base_client: Box<dyn SP1ProverTrait<CpuProverComponents>> = param
+                    .prover
+                    .map(|mode| {
+                        let prover: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
+                            ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
+                            ProverMode::Local => Box::new(ProverClient::builder().cpu().build()),
+                            ProverMode::Network => {
+                                Box::new(ProverClient::builder().network().build())
+                            }
+                        };
+                        prover
+                    })
+                    .unwrap_or_else(|| Box::new(ProverClient::from_env()));
 
-        let (pk, vk) = client.setup(AGGREGATION_ELF);
-
+                let client = Arc::new(base_client);
+                let (pk, vk) = client.setup(AGGREGATION_ELF);
+                info!(
+                    "new client and setup() for aggregation based on {:?} proofs with vk {:?}",
+                    input.proofs.len(),
+                    vk.bytes32()
+                );
+                Sp1ProverClient {
+                    client,
+                    pk,
+                    vk,
+                    network_client,
+                }
+            })
+            .clone();
         info!(
             "sp1 aggregate: {:?} based {:?} blocks with vk {:?}",
             reth_primitives::hex::encode_prefixed(stark_vk.hash_bytes()),
