@@ -281,11 +281,30 @@ impl Prover for Sp1Prover {
 
     async fn batch_run(
         input: GuestBatchInput,
-        output: &GuestBatchOutput,
+        _output: &GuestBatchOutput,
         config: &ProverConfig,
-        store: Option<&mut dyn IdWrite>,
+        _store: Option<&mut dyn IdWrite>,
     ) -> ProverResult<Proof> {
-        unimplemented!("Sp1 batch run is not implemented yet");
+
+        // Trivial approach: make proofs for each block in the batch
+        let mut block_proofs = Vec::with_capacity(input.inputs.len());
+        for block_input in input.inputs {
+            let block_output = GuestOutput {
+                header: block_input.block.header.clone(),
+                hash: Default::default(), // Seems to be unused
+            };
+            let proof = Self::run(block_input, &block_output, config, None /* Store in unused */).await?;
+            block_proofs.push(proof);
+        }
+
+        let aggregated_proof = Self::aggregate(
+            AggregationGuestInput { proofs: block_proofs },
+            &AggregationGuestOutput { hash: Default::default() /* Seems to be unused */ },
+            config,
+            None /* Store in unused */,
+        ).await?;
+
+        Ok(aggregated_proof)
     }
 
     async fn aggregate(
