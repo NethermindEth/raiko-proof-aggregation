@@ -102,7 +102,6 @@ pub struct Sp1Prover;
 #[derive(Clone)]
 struct Sp1ProverClient {
     pub(crate) client: Arc<Box<dyn SP1ProverTrait<CpuProverComponents>>>,
-    pub(crate) network_client: Arc<NetworkProver>,
     pub(crate) pk: SP1ProvingKey,
     pub(crate) vk: SP1VerifyingKey,
 }
@@ -129,15 +128,13 @@ impl Prover for Sp1Prover {
             client,
             pk,
             vk,
-            network_client,
         } = BLOCK_PROOF_CLIENT
             .entry(mode.clone())
             .or_insert_with(|| {
-                let network_client = Arc::new(ProverClient::builder().network().build());
                 let base_client: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
                     ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
                     ProverMode::Local => Box::new(ProverClient::builder().cpu().build()),
-                    ProverMode::Network => Box::new(ProverClient::builder().network().build()),
+                    ProverMode::Network => panic!("Network proving has been disabled :)"),
                 };
 
                 let client = Arc::new(base_client);
@@ -148,7 +145,6 @@ impl Prover for Sp1Prover {
                 );
                 Sp1ProverClient {
                     client,
-                    network_client,
                     pk,
                     vk,
                 }
@@ -172,38 +168,7 @@ impl Prover for Sp1Prover {
                 .prove(&pk, &stdin, prove_mode)
                 .map_err(|e| ProverError::GuestError(format!("Sp1: local proving failed: {e}")))?
         } else {
-            let proof_id = network_client
-                .prove(&pk, &stdin)
-                .mode(param.recursion.clone().into())
-                .cycle_limit(1_000_000_000_000)
-                .skip_simulation(true)
-                .strategy(FulfillmentStrategy::Reserved)
-                .request_async()
-                .await
-                .map_err(|e| {
-                    ProverError::GuestError(format!("Sp1: requesting proof failed: {e}"))
-                })?;
-            if let Some(id_store) = id_store {
-                id_store
-                    .store_id(
-                        (
-                            input.chain_spec.chain_id,
-                            input.block.header.number,
-                            output.hash,
-                            ProofType::Sp1 as u8,
-                        ),
-                        proof_id.clone().to_string(),
-                    )
-                    .await?;
-            }
-            info!(
-                "Sp1 Prover: block {:?} - proof id {proof_id:?}",
-                output.header.number
-            );
-            network_client
-                .wait_proof(proof_id.clone(), Some(Duration::from_secs(3600)))
-                .await
-                .map_err(|e| ProverError::GuestError(format!("Sp1: network proof failed {e:?}")))?
+            panic!("Network proving has been disabled :)")
         };
 
         let proof_bytes = match param.recursion {
@@ -329,20 +294,16 @@ impl Prover for Sp1Prover {
             client,
             pk,
             vk,
-            network_client,
         } = AGGREGATION_CLIENT
             .entry(param.prover.clone().unwrap_or_else(get_env_mock))
             .or_insert_with(|| {
-                let network_client = Arc::new(ProverClient::builder().network().build());
                 let base_client: Box<dyn SP1ProverTrait<CpuProverComponents>> = param
                     .prover
                     .map(|mode| {
                         let prover: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
                             ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
                             ProverMode::Local => Box::new(ProverClient::builder().cpu().build()),
-                            ProverMode::Network => {
-                                Box::new(ProverClient::builder().network().build())
-                            }
+                            ProverMode::Network => panic!("Network proving has been disabled :)"),
                         };
                         prover
                     })
@@ -359,7 +320,6 @@ impl Prover for Sp1Prover {
                     client,
                     pk,
                     vk,
-                    network_client,
                 }
             })
             .clone();
@@ -376,21 +336,7 @@ impl Prover for Sp1Prover {
                 .expect("proving failed");
             prove_result
         } else {
-            let proof_id = network_client
-                .prove(&pk, &stdin)
-                .mode(param.recursion.clone().into())
-                .cycle_limit(1_000_000_000_000)
-                .skip_simulation(true)
-                .strategy(FulfillmentStrategy::Reserved)
-                .request_async()
-                .await
-                .map_err(|e| {
-                    ProverError::GuestError(format!("Sp1: network proving failed: {e}"))
-                })?;
-            network_client
-                .wait_proof(proof_id.clone(), Some(Duration::from_secs(3600)))
-                .await
-                .map_err(|e| ProverError::GuestError(format!("Sp1: network proof failed {e:?}")))?
+            panic!("Network proving has been disabled :)")
         };
 
         let proof_bytes = prove_result.bytes();
