@@ -116,11 +116,11 @@ impl Prover for Sp1Prover {
             .unwrap();
         info!("GPU Number: {}", gpu_number);
 
-        let network_client = Arc::new(ProverClient::builder().network().build());
+        // SURGE-BENCHMARKS: network proving disabled
         let client: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
             ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
             ProverMode::Local => Box::new(ProverClient::builder().cuda().with_gpu_number(gpu_number).build()),
-            ProverMode::Network => Box::new(ProverClient::builder().network().build()),
+            ProverMode::Network => panic!("Network proving has been disabled :)"),
         };
 
         let (pk, vk) = client.setup(ELF);
@@ -142,37 +142,7 @@ impl Prover for Sp1Prover {
                 .prove(&pk, &stdin, prove_mode)
                 .map_err(|e| ProverError::GuestError(format!("Sp1: local proving failed: {e}")))?
         } else {
-            let proof_id = network_client
-                .prove(&pk, &stdin)
-                .mode(param.recursion.clone().into())
-                .skip_simulation(true)
-                .strategy(FulfillmentStrategy::Reserved)
-                .request_async()
-                .await
-                .map_err(|e| {
-                    ProverError::GuestError(format!("Sp1: requesting proof failed: {e}"))
-                })?;
-            if let Some(id_store) = id_store {
-                id_store
-                    .store_id(
-                        (
-                            input.chain_spec.chain_id,
-                            input.block.header.number,
-                            output.hash,
-                            ProofType::Sp1 as u8,
-                        ),
-                        proof_id.clone().to_string(),
-                    )
-                    .await?;
-            }
-            info!(
-                "Sp1 Prover: block {:?} - proof id {proof_id:?}",
-                output.header.number
-            );
-            network_client
-                .wait_proof(proof_id.clone(), Some(Duration::from_secs(3600)))
-                .await
-                .map_err(|e| ProverError::GuestError(format!("Sp1: network proof failed {e:?}")))?
+            panic!("Network proving has been disabled :)")
         };
 
         let proof_bytes = match param.recursion {
@@ -301,11 +271,11 @@ impl Prover for Sp1Prover {
         info!("GPU Number: {}", gpu_number);
 
         // Generate the proof for the given program.
-        let network_client = Arc::new(ProverClient::builder().network().build());
+        // SURGE-BENCHMARKS: network proving disabled
         let client: Box<dyn SP1ProverTrait<CpuProverComponents>> = match mode {
             ProverMode::Mock => Box::new(ProverClient::builder().mock().build()),
             ProverMode::Local => Box::new(ProverClient::builder().cuda().with_gpu_number(gpu_number).build()),
-            ProverMode::Network => Box::new(ProverClient::builder().network().build()),
+            ProverMode::Network => panic!("Network proving has been disabled :)"),
         };
 
         let (pk, vk) = client.setup(AGGREGATION_ELF);
@@ -323,20 +293,7 @@ impl Prover for Sp1Prover {
                 .expect("proving failed");
             prove_result
         } else {
-            let proof_id = network_client
-                .prove(&pk, &stdin)
-                .mode(param.recursion.clone().into())
-                .skip_simulation(true)
-                .strategy(FulfillmentStrategy::Reserved)
-                .request_async()
-                .await
-                .map_err(|e| {
-                    ProverError::GuestError(format!("Sp1: network proving failed: {e}"))
-                })?;
-            network_client
-                .wait_proof(proof_id.clone(), Some(Duration::from_secs(3600)))
-                .await
-                .map_err(|e| ProverError::GuestError(format!("Sp1: network proof failed {e:?}")))?
+            panic!("Network proving has been disabled :)")
         };
 
         let proof_bytes = prove_result.bytes();

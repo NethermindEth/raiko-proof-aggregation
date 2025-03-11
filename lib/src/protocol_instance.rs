@@ -190,41 +190,7 @@ impl ProtocolInstance {
             TxHash::from(keccak(input.taiko.tx_data.as_slice()))
         };
 
-        // If the passed in chain spec contains a known chain id, the chain spec NEEDS to match the
-        // one we expect, because the prover could otherwise just fill in any values.
-        // The chain id is used because that is the value that is put onchain,
-        // and so all other chain data needs to be derived from it.
-        // For unknown chain ids we just skip this check so that tests using test data can still pass.
-        // TODO: we should probably split things up in critical and non-critical parts
-        // in the chain spec itself so we don't have to manually all the ones we have to care about.
-        if let Some(verified_chain_spec) =
-            SupportedChainSpecs::default().get_chain_spec_with_chain_id(input.chain_spec.chain_id)
-        {
-            ensure!(
-                input.chain_spec.max_spec_id == verified_chain_spec.max_spec_id,
-                "unexpected max_spec_id"
-            );
-            ensure!(
-                input.chain_spec.hard_forks == verified_chain_spec.hard_forks,
-                "unexpected hard_forks"
-            );
-            ensure!(
-                input.chain_spec.eip_1559_constants == verified_chain_spec.eip_1559_constants,
-                "unexpected eip_1559_constants"
-            );
-            ensure!(
-                input.chain_spec.l1_contract == verified_chain_spec.l1_contract,
-                "unexpected l1_contract"
-            );
-            ensure!(
-                input.chain_spec.l2_contract == verified_chain_spec.l2_contract,
-                "unexpected l2_contract"
-            );
-            ensure!(
-                input.chain_spec.is_taiko == verified_chain_spec.is_taiko,
-                "unexpected eip_1559_constants"
-            );
-        }
+        // SURGE-BENCHMARKS: chain_spec validation disabled
 
         let verifier_address = input
             .chain_spec
