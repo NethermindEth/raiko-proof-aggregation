@@ -296,15 +296,15 @@ backoff = "0.4.0"
 
 
 # revm
-revm = { version = "9.0.0", features = [
+revm = { path = "_debug-crates/revm/crates/revm", version = "9.0.0", default-features = false, features = [
     "std",
     "secp256k1",
     "blst",
-], default-features = false }
-revm-primitives = { version = "4.0.0", features = [
+]}
+revm-primitives = { path = "_debug-crates/revm/crates/primitives", version = "4.0.0", features = [
     "std",
 ], default-features = false }
-revm-precompile = { version = "7.0.0", features = [
+revm-precompile = { path = "_debug-crates/revm/crates/precompile", version = "7.0.0", features = [
     "std",
 ], default-features = false }
 revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "4fe17f0" }
@@ -409,17 +409,17 @@ similar-asserts = "1.5.0"
 test-fuzz = "5"
 
 [patch.crates-io]
-revm = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko", default-features = false, features = [
+revm = { path = "_debug-crates/revm/crates/revm", default-features = false, features = [
     "std",
     "serde",
     "taiko",
     "secp256k1",
     "blst",
 ]}
-revm-primitives = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
-revm-precompile = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
+revm-primitives = { path = "_debug-crates/revm/crates/primitives" }
+revm-precompile = { path = "_debug-crates/revm/crates/precompile" }
 secp256k1 = { git = "https://github.com/CeciliaZ030/rust-secp256k1", branch = "sp1-patch" }
 blst = { git = "https://github.com/CeciliaZ030/blst.git", branch = "v0.3.12-serialize" }
 alloy-serde = { git = "https://github.com/CeciliaZ030/alloy.git", branch = "v0.1.4-fix" }
-revm-interpreter = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
+revm-interpreter = { path = "_debug-crates/revm/crates/interpreter" }
 c-kzg = { git = "https://github.com/brechtpd/c-kzg-4844", branch = "for-alpha7" }

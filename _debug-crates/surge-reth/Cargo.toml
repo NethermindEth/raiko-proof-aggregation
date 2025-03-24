@@ -339,15 +339,15 @@ reth-trie-common = { path = "crates/trie/common" }
 reth-trie-parallel = { path = "crates/trie/parallel" }
 
 # revm
-revm = { version = "9.0.0", features = [
+revm = { path = "../revm/crates/revm", version = "9.0.0", default-features = false, features = [
     "std",
     "secp256k1",
     "blst",
-], default-features = false }
-revm-primitives = { version = "4.0.0", features = [
+]}
+revm-primitives = { path = "../revm/crates/primitives", version = "4.0.0", features = [
     "std",
 ], default-features = false }
-revm-precompile = { version = "7.0.0", features = [
+revm-precompile = { path = "../revm/crates/precompile", version = "7.0.0", features = [
     "std",
 ], default-features = false }
 revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "4fe17f0" }
@@ -507,13 +507,13 @@ test-fuzz = "5"
 anyhow = "1.0"
 
 [patch.crates-io]
-revm = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko", default-features = false, features = [
+revm = { path = "../revm/crates/revm", version = "9.0.0", default-features = false, features = [
     "std",
     "serde",
     "taiko",
 ]}
-revm-interpreter = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
-revm-precompile = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
-revm-primitives = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko"}
+revm-interpreter = { path = "../revm/crates/interpreter" }
+revm-precompile = { path = "../revm/crates/precompile" }
+revm-primitives = { path = "../revm/crates/primitives" }
 c-kzg = { git = "https://github.com/brechtpd/c-kzg-4844", branch = "for-alpha7" }
 secp256k1 = { git = "https://github.com/CeciliaZ030/rust-secp256k1", branch = "sp1-patch" }

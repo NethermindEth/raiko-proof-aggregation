@@ -1,0 +1,108 @@
+name: Tests
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{github.workflow}}-${{github.ref}}
+
+on:
+  push:
+    branches: [main, "release/**"]
+  pull_request:
+    branches: [main, "release/**"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: test ${{ matrix.rust }} ${{ matrix.flags }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: ["stable", "beta", "nightly"]
+        flags: ["--no-default-features", "", "--features taiko"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace ${{ matrix.flags }}
+
+  test-no-std:
+    name: test no_std
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imac-unknown-none-elf
+      - run: cargo check --target riscv32imac-unknown-none-elf --no-default-features
+
+  check-no-default-features:
+    name: check no-default-features
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cd crates/revm
+          cargo check --no-default-features
+
+  check-serde:
+    name: check serde
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cd crates/revm
+          cargo check --no-default-features --features serde
+
+  check-std:
+    name: check std
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cd crates/revm
+          cargo check --no-default-features --features std
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo clippy --workspace --all-targets --all-features
+        env:
+          RUSTFLAGS: -Dwarnings
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-docs
+      - run: cargo doc --workspace --features taiko --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs -D warnings"
+
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
