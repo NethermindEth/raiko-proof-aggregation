@@ -20,7 +20,7 @@ members = [
 [workspace.package]
 version = "1.0.0-rc.2"
 edition = "2021"
-rust-version = "1.79"
+rust-version = "1.84"
 license = "MIT OR Apache-2.0"
 homepage = "https://paradigmxyz.github.io/reth"
 repository = "https://github.com/paradigmxyz/reth"

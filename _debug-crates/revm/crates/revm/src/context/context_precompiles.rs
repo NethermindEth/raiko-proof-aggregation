@@ -66,6 +66,11 @@ impl<DB: Database> ContextPrecompiles<DB> {
     ) -> Option<PrecompileResult> {
         let precompile = self.inner.get_mut(&addess)?;
 
+        println!("=== Precompile: {:?}", match precompile {
+            ContextPrecompile::Ordinary(p) => format!("ContextPrecompile::Ordinary({:?})", p),
+            ContextPrecompile::ContextStatefulMut(p) => "ContextPrecompile::ContextStatefulMut(...)".to_owned(),
+            ContextPrecompile::ContextStateful(p) => "ContextPrecompile::ContextStateful(...)".to_owned(),
+        });
         match precompile {
             ContextPrecompile::Ordinary(p) => Some(p.call(bytes, gas_price, &evmctx.env)),
             ContextPrecompile::ContextStatefulMut(p) => Some(p.call_mut(bytes, gas_price, evmctx)),
@@ -107,6 +112,12 @@ pub trait ContextStatefulPrecompile<DB: Database>: Sync + Send {
     ) -> PrecompileResult;
 }
 
+// impl<DB: Database> core::fmt::Debug for dyn ContextStatefulPrecompile<DB> {
+//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+//         write!(f, "ContextStatefulPrecompile")
+//     }
+// }
+
 /// Context aware mutable stateful precompile trait. It is used to create
 /// a boxed precompile in [`ContextPrecompile`].
 pub trait ContextStatefulPrecompileMut<DB: Database>: DynClone + Send + Sync {
@@ -117,6 +128,12 @@ pub trait ContextStatefulPrecompileMut<DB: Database>: DynClone + Send + Sync {
         evmctx: &mut InnerEvmContext<DB>,
     ) -> PrecompileResult;
 }
+
+// impl<DB: Database> core::fmt::Debug for dyn ContextStatefulPrecompileMut<DB> {
+//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+//         write!(f, "ContextStatefulPrecompileMut")
+//     }
+// }
 
 dyn_clone::clone_trait_object!(<DB> ContextStatefulPrecompileMut<DB>);
 

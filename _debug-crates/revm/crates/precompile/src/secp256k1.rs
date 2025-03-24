@@ -15,6 +15,7 @@ mod secp256k1_zk {
     pub(crate) fn ecrecover(sig: &B512, recid: u8, msg: &B256) -> Result<B256, Error> {
         #[cfg(feature = "sp1-cycle-tracker")]
         println!("cycle-tracker-start: ecrecover");
+        println!("=== ecrecover (sig: {:?}, recid: {:?}, msg: {:?})", sig, recid, msg);
         let res = if zk_op::contains_operation(&ZkOperation::Secp256k1) {
             zk_op::ZKVM_OPERATOR
                 .get()
@@ -89,6 +90,7 @@ mod secp256k1 {
 }
 
 pub fn ec_recover_run(input: &Bytes, gas_limit: u64) -> PrecompileResult {
+    println!("vvv ec_recover_run (input: {:?}, gas_limit: {:?})", input, gas_limit);
     const ECRECOVER_BASE: u64 = 3_000;
 
     if ECRECOVER_BASE > gas_limit {
@@ -109,5 +111,6 @@ pub fn ec_recover_run(input: &Bytes, gas_limit: u64) -> PrecompileResult {
     let out = secp256k1_zk::ecrecover(sig, recid, msg)
         .map(|o| o.to_vec().into())
         .unwrap_or_default();
+    println!("^^^ ec_recover_run");
     Ok((ECRECOVER_BASE, out))
 }

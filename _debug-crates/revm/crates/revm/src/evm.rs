@@ -89,10 +89,12 @@ impl<'a, EXT, DB: Database> Evm<'a, EXT, DB> {
         let mut stack_frame = call_stack.last_mut().unwrap();
 
         loop {
+            println!("vvv self.handler.execute_frame");
             // Execute the frame.
             let next_action =
                 self.handler
                     .execute_frame(stack_frame, &mut shared_memory, &mut self.context)?;
+            println!("^^^ self.handler.execute_frame (next_action = {:?})", next_action);
 
             // Take error and break the loop, if any.
             // This error can be set in the Interpreter when it interacts with the context.
@@ -100,7 +102,12 @@ impl<'a, EXT, DB: Database> Evm<'a, EXT, DB> {
 
             let exec = &mut self.handler.execution;
             let frame_or_result = match next_action {
-                InterpreterAction::Call { inputs } => exec.call(&mut self.context, inputs)?,
+                InterpreterAction::Call { inputs } => {
+                    println!("vvv exec.call");
+                    let x = exec.call(&mut self.context, inputs)?;
+                    println!("^^^ exec.call");
+                    x
+                },
                 InterpreterAction::Create { inputs } => exec.create(&mut self.context, inputs)?,
                 InterpreterAction::EOFCreate { inputs } => {
                     exec.eofcreate(&mut self.context, inputs)?
@@ -228,13 +235,19 @@ impl<EXT, DB: Database> Evm<'_, EXT, DB> {
     /// This function will validate the transaction.
     #[inline]
     pub fn transact(&mut self) -> EVMResult<DB::Error> {
+        println!("vvv self.preverify_transaction_inner()");
         let initial_gas_spend = self.preverify_transaction_inner().map_err(|e| {
             self.clear();
             e
         })?;
+        println!("^^^ self.preverify_transaction_inner()");
 
+        println!("vvv self.transact_preverified_inner");
         let output = self.transact_preverified_inner(initial_gas_spend);
+        println!("^^^ self.transact_preverified_inner");
+        println!("vvv self.handler.post_execution().end");
         let output = self.handler.post_execution().end(&mut self.context, output);
+        println!("^^^ self.handler.post_execution().end");
         self.clear();
         output
     }
@@ -325,52 +338,88 @@ impl<EXT, DB: Database> Evm<'_, EXT, DB> {
     /// Transact pre-verified transaction.
     fn transact_preverified_inner(&mut self, initial_gas_spend: u64) -> EVMResult<DB::Error> {
         let ctx = &mut self.context;
+        println!("vvv self.handler.pre_execution()");
         let pre_exec = self.handler.pre_execution();
+        println!("^^^ self.handler.pre_execution()");
 
         // load access list and beneficiary if needed.
+        println!("vvv pre_exec.load_accounts");
         pre_exec.load_accounts(ctx)?;
+        println!("^^^ pre_exec.load_accounts");
 
         // load precompiles
+        println!("vvv pre_exec.load_precompiles");
         let precompiles = pre_exec.load_precompiles();
         ctx.evm.set_precompiles(precompiles);
+        println!("^^^ pre_exec.load_precompiles");
 
+        println!("vvv pre_exec.deduct_caller");
         // deduce caller balance with its limit.
         pre_exec.deduct_caller(ctx)?;
+        println!("^^^ pre_exec.deduct_caller");
 
         let gas_limit = ctx.evm.env.tx.gas_limit - initial_gas_spend;
 
+        println!("vvv self.handler.execution");
         let exec = self.handler.execution();
+        println!("^^^ self.handler.execution");
         // call inner handling of call/create
         let first_frame_or_result = match ctx.evm.env.tx.transact_to {
-            TransactTo::Call(_) => exec.call(
-                ctx,
-                CallInputs::new_boxed(&ctx.evm.env.tx, gas_limit).unwrap(),
-            )?,
-            TransactTo::Create => exec.create(
-                ctx,
-                CreateInputs::new_boxed(&ctx.evm.env.tx, gas_limit).unwrap(),
-            )?,
+            TransactTo::Call(_) => {
+                println!("vvv exec.call");
+                let x = exec.call(
+                    ctx,
+                    CallInputs::new_boxed(&ctx.evm.env.tx, gas_limit).unwrap(),
+                )?;
+                println!("^^^ exec.call");
+                x
+            },
+            TransactTo::Create => {
+                println!("vvv exec.create");
+                let x = exec.create(
+                    ctx,
+                    CreateInputs::new_boxed(&ctx.evm.env.tx, gas_limit).unwrap(),
+                )?;
+                println!("^^^ exec.create");
+                x
+            },
         };
 
         // Starts the main running loop.
         let mut result = match first_frame_or_result {
-            FrameOrResult::Frame(first_frame) => self.run_the_loop(first_frame)?,
+            FrameOrResult::Frame(first_frame) => {
+                println!("vvv self.run_the_loop");
+                let x = self.run_the_loop(first_frame)?;
+                println!("^^^ self.run_the_loop");
+                x
+            },
             FrameOrResult::Result(result) => result,
         };
 
         let ctx = &mut self.context;
 
+        println!("vvv self.handler.execution().last_frame_return");
         // handle output of call/create calls.
         self.handler
             .execution()
             .last_frame_return(ctx, &mut result)?;
+        println!("^^^ self.handler.execution().last_frame_return");
 
+        println!("vvv self.handler.post_execution");
         let post_exec = self.handler.post_execution();
+        println!("^^^ self.handler.post_execution");
         // Reimburse the caller
+        println!("vvv post_exec.reimburse_caller");
         post_exec.reimburse_caller(ctx, result.gas())?;
+        println!("^^^ post_exec.reimburse_caller");
         // Reward beneficiary
+        println!("vvv post_exec.reward_beneficiary");
         post_exec.reward_beneficiary(ctx, result.gas())?;
+        println!("^^^ post_exec.reward_beneficiary");
         // Returns output of transaction.
-        post_exec.output(ctx, result)
+        println!("vvv post_exec.output");
+        let x = post_exec.output(ctx, result);
+        println!("^^^ post_exec.output");
+        x
     }
 }

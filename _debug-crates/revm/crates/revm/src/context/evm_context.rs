@@ -108,9 +108,11 @@ impl<DB: Database> EvmContext<DB> {
         input_data: &Bytes,
         gas: Gas,
     ) -> Option<InterpreterResult> {
+        println!("vvv self.precompiles.call");
         let out = self
             .precompiles
             .call(address, input_data, gas.limit(), &mut self.inner)?;
+        println!("^^^ self.precompiles.call");
 
         let mut result = InterpreterResult {
             result: InstructionResult::Return,
@@ -162,10 +164,12 @@ impl<DB: Database> EvmContext<DB> {
             return return_result(InstructionResult::CallTooDeep);
         }
 
+        println!("vvv load_code");
         let (account, _) = self
             .inner
             .journaled_state
             .load_code(inputs.bytecode_address, &mut self.inner.db)?;
+        println!("^^^ load_code");
         let code_hash = account.info.code_hash();
         let bytecode = account.info.code.clone().unwrap_or_default();
 
@@ -173,11 +177,16 @@ impl<DB: Database> EvmContext<DB> {
         let checkpoint = self.journaled_state.checkpoint();
 
         // Touch address. For "EIP-158 State Clear", this will erase empty accounts.
+        println!("=== inputs.value = {:?}", inputs.value);
         match inputs.value {
             // if transfer value is zero, do the touch.
             CallValue::Transfer(value) if value == U256::ZERO => {
+                println!("vvv self.load_account");
                 self.load_account(inputs.target_address)?;
+                println!("^^^ self.load_account");
+                println!("vvv self.journaled_state.touch");
                 self.journaled_state.touch(&inputs.target_address);
+                println!("^^^ self.journaled_state.touch");
             }
             CallValue::Transfer(value) => {
                 // Transfer value from caller to called account
@@ -194,7 +203,10 @@ impl<DB: Database> EvmContext<DB> {
             _ => {}
         };
 
-        if let Some(result) = self.call_precompile(inputs.bytecode_address, &inputs.input, gas) {
+        println!("vvv self.call_precompile (inputs.bytecode_address = {:?}, inputs.input = {:?}, gas = {:?})", inputs.bytecode_address, inputs.input, gas);
+        let call = self.call_precompile(inputs.bytecode_address, &inputs.input, gas);
+        println!("^^^ self.call_precompile (result = {:?})", call);
+        if let Some(result) = call {
             if matches!(result.result, return_ok!()) {
                 self.journaled_state.checkpoint_commit();
             } else {
