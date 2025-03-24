@@ -154,6 +154,7 @@ where
         let is_taiko = self.chain_spec.is_taiko();
 
         // apply pre execution changes
+        println!("vvv apply_beacon_root_contract_call");
         apply_beacon_root_contract_call(
             &self.chain_spec,
             block.timestamp,
@@ -161,6 +162,8 @@ where
             block.parent_beacon_block_root,
             &mut evm,
         )?;
+        println!("^^^ apply_beacon_root_contract_call");
+        println!("vvv apply_blockhashes_update");
         apply_blockhashes_update(
             evm.db_mut(),
             &self.chain_spec,
@@ -168,6 +171,7 @@ where
             block.number,
             block.parent_hash,
         )?;
+        println!("^^^ apply_blockhashes_update");
 
         // execute transactions
         let mut cumulative_gas_used = 0;
@@ -175,6 +179,7 @@ where
         let mut valid_transaction_indices = Vec::new();
         for (idx, (sender, transaction)) in block.transactions_with_sender().enumerate() {
             let is_anchor = is_taiko && idx == 0;
+            println!("vvv transaction #{idx}, is_anchor = {is_anchor}, sender = {sender}");
 
             // verify the anchor tx
             if is_anchor {
@@ -183,6 +188,7 @@ where
                     Head { number: block.number, ..Default::default() },
                 );
                 if spec_id.is_enabled_in(SpecId::ONTAKE) {
+                    println!("vvv check_anchor_tx_ontake");
                     check_anchor_tx_ontake(
                         transaction,
                         sender,
@@ -190,11 +196,14 @@ where
                         taiko_data.clone().unwrap(),
                     )
                     .map_err(|e| BlockExecutionError::CanonicalRevert { inner: e.to_string() })?;
+                    println!("^^^ check_anchor_tx_ontake");
                 } else if spec_id.is_enabled_in(SpecId::HEKLA) {
+                    println!("vvv check_anchor_tx");
                     check_anchor_tx(transaction, sender, &block.block, taiko_data.clone().unwrap())
                         .map_err(|e| BlockExecutionError::CanonicalRevert {
                             inner: e.to_string(),
                         })?;
+                    println!("^^^ check_anchor_tx");
                 } else {
                     return Err(BlockExecutionError::CanonicalRevert {
                         inner: "unknown spec id for anchor".to_string(),
@@ -227,7 +236,9 @@ where
                 .into())
             }
 
+            println!("vvv EvmConfig::fill_tx_env");
             EvmConfig::fill_tx_env(evm.tx_mut(), transaction, *sender);
+            println!("^^^ EvmConfig::fill_tx_env");
 
             // Set taiko specific data
             evm.tx_mut().taiko.is_anchor = is_anchor;
@@ -237,6 +248,7 @@ where
             evm.tx_mut().taiko.basefee_ratio = taiko_data.clone().unwrap().base_fee_config.sharing_pctg;
 
             // Execute transaction.
+            println!("vvv evm.transact()");
             let res = evm.transact().map_err(move |err| {
                 // Ensure hash is calculated for error log, if not already done
                 BlockValidationError::EVM {
@@ -244,6 +256,7 @@ where
                     error: err.into(),
                 }
             });
+            println!("^^^ evm.transact()");
             if res.is_err() {
                 // Clear the state for the next tx
                 evm.context.evm.journaled_state = JournaledState::new(evm.context.evm.journaled_state.spec, HashSet::new());
@@ -276,7 +289,10 @@ where
                 }
             }
             let ResultAndState { result, state } = res?;
+
+            println!("vvv evm.db_mut().commit(state)");
             evm.db_mut().commit(state);
+            println!("^^^ evm.db_mut().commit(state)");
 
             // append gas used
             cumulative_gas_used += result.gas_used();
@@ -298,15 +314,18 @@ where
 
             // Add the tx to the list of valid transactions
             valid_transaction_indices.push(idx);
+            println!("^^^ transaction #{idx}");
         }
 
         let requests = if self.chain_spec.is_prague_active_at_timestamp(block.timestamp) {
+            println!("vvv EIP-6110 deposits");
             // Collect all EIP-6110 deposits
             let deposit_requests =
                 crate::eip6110::parse_deposits_from_receipts(&self.chain_spec, &receipts)?;
 
             // Collect all EIP-7685 requests
             let withdrawal_requests = apply_withdrawal_requests_contract_call(&mut evm)?;
+            println!("^^^ EIP-6110 deposits");
 
             [deposit_requests, withdrawal_requests].concat()
         } else {
@@ -400,17 +419,24 @@ where
         total_difficulty: U256,
     ) -> Result<EthExecuteOutput, BlockExecutionError> {
         // 1. prepare state on new block
+        println!("vvv on_new_block");
         self.on_new_block(&block.header);
+        println!("^^^ on_new_block");
 
         // 2. configure the evm and execute
         let env = self.evm_env_for_block(&block.header, total_difficulty);
         let output = {
             let evm = self.executor.evm_config.evm_with_env(&mut self.state, env);
-            self.executor.execute_state_transitions(block, evm, self.optimistic, self.taiko_data.clone())
+            println!("vvv executor.execute_state_transitions");
+            let res = self.executor.execute_state_transitions(block, evm, self.optimistic, self.taiko_data.clone());
+            println!("^^^ executor.execute_state_transitions");
+            res
         }?;
 
         // 3. apply post execution changes
+        println!("vvv post_execution");
         self.post_execution(block, total_difficulty)?;
+        println!("^^^ post_execution");
 
         Ok(output)
     }
@@ -480,11 +506,15 @@ where
     /// State changes are committed to the database.
     fn execute(mut self, input: Self::Input<'_>) -> Result<Self::Output, Self::Error> {
         let BlockExecutionInput { block, total_difficulty } = input;
+        println!("vvv execute_without_verification");
         let EthExecuteOutput { receipts, requests, gas_used, valid_transaction_indices } =
             self.execute_without_verification(block, total_difficulty)?;
+        println!("^^^ execute_without_verification");
 
         // NOTE: we need to merge keep the reverts for the bundle retention
+        println!("vvv merge_transition");
         self.state.merge_transitions(BundleRetention::Reverts);
+        println!("^^^ merge_transition");
 
         Ok(BlockExecutionOutput { state: self.state.take_bundle(), receipts, requests, gas_used, db: self.state, valid_transaction_indices })
     }

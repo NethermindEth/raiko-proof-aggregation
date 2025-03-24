@@ -187,6 +187,7 @@ impl<DB: Database<Error = ProviderError> + DatabaseCommit + OptimisticDatabase>
                 base_fee_config: self.input.taiko.block_proposed.base_fee_config(),
             })
             .optimistic(optimistic);
+        println!("vvv executor.execute(...)");
         let BlockExecutionOutput {
             state,
             receipts,
@@ -200,6 +201,7 @@ impl<DB: Database<Error = ProviderError> + DatabaseCommit + OptimisticDatabase>
                 error!("Error executing block: {e:?}");
                 e
             })?;
+        println!("^^^ executor.execute(...)");
         // Filter out the valid transactions so that the header checks only take these into account
         block.body = valid_transaction_indices
             .iter()
