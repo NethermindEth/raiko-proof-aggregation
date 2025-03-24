@@ -17,6 +17,18 @@ members = [
     "taskdb",
 ]
 
+[workspace.package]
+version = "1.0.0-rc.2"
+edition = "2021"
+rust-version = "1.79"
+license = "MIT OR Apache-2.0"
+homepage = "https://paradigmxyz.github.io/reth"
+repository = "https://github.com/paradigmxyz/reth"
+exclude = [".github/"]
+
+[workspace.lints]
+rustdoc.all = "allow"
+
 # Always optimize; building and running the guest takes much longer without optimization.
 [profile.dev]
 opt-level = 3
@@ -38,20 +50,110 @@ raiko-lib = { path = "./lib", features = ["std"] }
 raiko-core = { path = "./core" }
 raiko-tasks = { path = "./taskdb" }
 
+
 # reth
-reth-primitives = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false, features = [
+reth = { path = "_debug-crates/surge-reth/bin/reth" }
+reth-bench = { path = "_debug-crates/surge-reth/bin/reth-bench" }
+reth-auto-seal-consensus = { path = "_debug-crates/surge-reth/crates/consensus/auto-seal" }
+reth-basic-payload-builder = { path = "_debug-crates/surge-reth/crates/payload/basic" }
+reth-beacon-consensus = { path = "_debug-crates/surge-reth/crates/consensus/beacon" }
+reth-blockchain-tree = { path = "_debug-crates/surge-reth/crates/blockchain-tree" }
+reth-blockchain-tree-api = { path = "_debug-crates/surge-reth/crates/blockchain-tree-api" }
+reth-cli-runner = { path = "_debug-crates/surge-reth/crates/cli/runner" }
+reth-codecs = { path = "_debug-crates/surge-reth/crates/storage/codecs" }
+reth-codecs-derive = { path = "_debug-crates/surge-reth/crates/storage/codecs/derive" }
+reth-config = { path = "_debug-crates/surge-reth/crates/config" }
+reth-consensus = { path = "_debug-crates/surge-reth/crates/consensus/consensus" }
+reth-consensus-common = { path = "_debug-crates/surge-reth/crates/consensus/common" }
+reth-consensus-debug-client = { path = "_debug-crates/surge-reth/crates/consensus/debug-client" }
+reth-db = { path = "_debug-crates/surge-reth/crates/storage/db", default-features = false }
+reth-db-api = { path = "_debug-crates/surge-reth/crates/storage/db-api" }
+reth-db-common = { path = "_debug-crates/surge-reth/crates/storage/db-common" }
+reth-discv4 = { path = "_debug-crates/surge-reth/crates/net/discv4" }
+reth-discv5 = { path = "_debug-crates/surge-reth/crates/net/discv5" }
+reth-dns-discovery = { path = "_debug-crates/surge-reth/crates/net/dns" }
+reth-downloaders = { path = "_debug-crates/surge-reth/crates/net/downloaders" }
+reth-e2e-test-utils = { path = "_debug-crates/surge-reth/crates/e2e-test-utils" }
+reth-ecies = { path = "_debug-crates/surge-reth/crates/net/ecies" }
+reth-engine-primitives = { path = "_debug-crates/surge-reth/crates/engine-primitives" }
+reth-errors = { path = "_debug-crates/surge-reth/crates/errors" }
+reth-eth-wire = { path = "_debug-crates/surge-reth/crates/net/eth-wire" }
+reth-eth-wire-types = { path = "_debug-crates/surge-reth/crates/net/eth-wire-types" }
+reth-ethereum-consensus = { path = "_debug-crates/surge-reth/crates/ethereum/consensus" }
+reth-ethereum-engine-primitives = { path = "_debug-crates/surge-reth/crates/ethereum/engine-primitives" }
+reth-ethereum-forks = { path = "_debug-crates/surge-reth/crates/ethereum-forks" }
+reth-ethereum-payload-builder = { path = "_debug-crates/surge-reth/crates/ethereum/payload" }
+reth-etl = { path = "_debug-crates/surge-reth/crates/etl" }
+reth-evm = { path = "_debug-crates/surge-reth/crates/evm" }
+reth-evm-ethereum = { path = "_debug-crates/surge-reth/crates/ethereum/evm" }
+reth-evm-optimism = { path = "_debug-crates/surge-reth/crates/optimism/evm" }
+reth-execution-errors = { path = "_debug-crates/surge-reth/crates/evm/execution-errors" }
+reth-execution-types = { path = "_debug-crates/surge-reth/crates/evm/execution-types" }
+reth-exex = { path = "_debug-crates/surge-reth/crates/exex/exex" }
+reth-exex-test-utils = { path = "_debug-crates/surge-reth/crates/exex/test-utils" }
+reth-exex-types = { path = "_debug-crates/surge-reth/crates/exex/types" }
+reth-fs-util = { path = "_debug-crates/surge-reth/crates/fs-util" }
+reth-ipc = { path = "_debug-crates/surge-reth/crates/rpc/ipc" }
+reth-libmdbx = { path = "_debug-crates/surge-reth/crates/storage/libmdbx-rs" }
+reth-mdbx-sys = { path = "_debug-crates/surge-reth/crates/storage/libmdbx-rs/mdbx-sys" }
+reth-metrics = { path = "_debug-crates/surge-reth/crates/metrics" }
+reth-metrics-derive = { path = "_debug-crates/surge-reth/crates/metrics/metrics-derive" }
+reth-net-common = { path = "_debug-crates/surge-reth/crates/net/common" }
+reth-net-nat = { path = "_debug-crates/surge-reth/crates/net/nat" }
+reth-network = { path = "_debug-crates/surge-reth/crates/net/network" }
+reth-network-api = { path = "_debug-crates/surge-reth/crates/net/network-api" }
+reth-network-peers = { path = "_debug-crates/surge-reth/crates/net/peers", default-features = false }
+reth-network-p2p = { path = "_debug-crates/surge-reth/crates/net/p2p" }
+reth-nippy-jar = { path = "_debug-crates/surge-reth/crates/storage/nippy-jar" }
+reth-node-api = { path = "_debug-crates/surge-reth/crates/node/api" }
+reth-node-builder = { path = "_debug-crates/surge-reth/crates/node/builder" }
+reth-node-core = { path = "_debug-crates/surge-reth/crates/node-core" }
+reth-node-ethereum = { path = "_debug-crates/surge-reth/crates/ethereum/node" }
+reth-node-events = { path = "_debug-crates/surge-reth/crates/node/events" }
+reth-node-optimism = { path = "_debug-crates/surge-reth/crates/optimism/node" }
+reth-optimism-consensus = { path = "_debug-crates/surge-reth/crates/optimism/consensus" }
+reth-optimism-payload-builder = { path = "_debug-crates/surge-reth/crates/optimism/payload" }
+reth-optimism-primitives = { path = "_debug-crates/surge-reth/crates/optimism/primitives" }
+reth-payload-builder = { path = "_debug-crates/surge-reth/crates/payload/builder" }
+reth-payload-primitives = { path = "_debug-crates/surge-reth/crates/payload/primitives" }
+reth-payload-validator = { path = "_debug-crates/surge-reth/crates/payload/validator" }
+reth-primitives-traits = { path = "_debug-crates/surge-reth/crates/primitives-traits" }
+reth-provider = { path = "_debug-crates/surge-reth/crates/storage/provider" }
+reth-prune = { path = "_debug-crates/surge-reth/crates/prune/prune" }
+reth-prune-types = { path = "_debug-crates/surge-reth/crates/prune/types" }
+reth-revm = { path = "_debug-crates/surge-reth/crates/revm" }
+reth-rpc = { path = "_debug-crates/surge-reth/crates/rpc/rpc" }
+reth-rpc-api = { path = "_debug-crates/surge-reth/crates/rpc/rpc-api" }
+reth-rpc-api-testing-util = { path = "_debug-crates/surge-reth/crates/rpc/rpc-testing-util" }
+reth-rpc-builder = { path = "_debug-crates/surge-reth/crates/rpc/rpc-builder" }
+reth-rpc-engine-api = { path = "_debug-crates/surge-reth/crates/rpc/rpc-engine-api" }
+reth-rpc-layer = { path = "_debug-crates/surge-reth/crates/rpc/rpc-layer" }
+reth-rpc-server-types = { path = "_debug-crates/surge-reth/crates/rpc/rpc-server-types" }
+reth-rpc-types = { path = "_debug-crates/surge-reth/crates/rpc/rpc-types" }
+reth-rpc-types-compat = { path = "_debug-crates/surge-reth/crates/rpc/rpc-types-compat" }
+reth-stages = { path = "_debug-crates/surge-reth/crates/stages/stages" }
+reth-stages-api = { path = "_debug-crates/surge-reth/crates/stages/api" }
+reth-stages-types = { path = "_debug-crates/surge-reth/crates/stages/types" }
+reth-static-file = { path = "_debug-crates/surge-reth/crates/static-file/static-file" }
+reth-static-file-types = { path = "_debug-crates/surge-reth/crates/static-file/types" }
+reth-storage-api = { path = "_debug-crates/surge-reth/crates/storage/storage-api" }
+reth-storage-errors = { path = "_debug-crates/surge-reth/crates/storage/errors" }
+reth-tasks = { path = "_debug-crates/surge-reth/crates/tasks" }
+reth-testing-utils = { path = "_debug-crates/surge-reth/testing/testing-utils" }
+reth-tokio-util = { path = "_debug-crates/surge-reth/crates/tokio-util" }
+reth-tracing = { path = "_debug-crates/surge-reth/crates/tracing" }
+reth-transaction-pool = { path = "_debug-crates/surge-reth/crates/transaction-pool" }
+reth-trie = { path = "_debug-crates/surge-reth/crates/trie/trie" }
+reth-trie-common = { path = "_debug-crates/surge-reth/crates/trie/common" }
+reth-trie-parallel = { path = "_debug-crates/surge-reth/crates/trie/parallel" }
+
+reth-primitives = { path = "_debug-crates/surge-reth/crates/primitives/", features = [
     "alloy-compat",
     "taiko",
 ] }
-reth-evm-ethereum = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false }
-reth-evm = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false }
-reth-rpc-types = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false }
-reth-revm = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false }
-reth-chainspec = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false, features = [
+reth-chainspec = { path = "_debug-crates/surge-reth/crates/chainspec", default-features = false, features = [
     "taiko",
 ] }
-reth-provider = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false }
-reth-ethereum-forks = { git = "https://github.com/NethermindEth/surge-reth.git", default-features = false }
 
 # risc zero
 risc0-zkvm = { version = "=1.2.2", features = ["prove", "getrandom"] }
@@ -68,13 +170,13 @@ sp1-helper = { git = "https://github.com/NethermindEth/sp1.git", branch = "v4.0.
 alloy-rlp = { version = "0.3.4", default-features = false }
 alloy-rlp-derive = { version = "0.3.4", default-features = false }
 alloy-core = { version = "0.7.2", default-features = false }
-alloy-dyn-abi = { version = "0.7.2", default-features = false }
+alloy-dyn-abi = { version = "0.7.2" }
 alloy-json-abi = { version = "0.7.2", default-features = false }
 alloy-primitives = { version = "0.7.2", default-features = false }
 alloy-sol-types = { version = "0.7.2", default-features = false }
 alloy-chains = { version = "0.1.15", default-features = false }
 reqwest_alloy = { package = "reqwest", version = "0.12.4", features = ["json"] }
-alloy-rpc-types = { version = "0.1", default-features = false }
+alloy-rpc-types = { version = "0.1", default-features = false, features = ["eth"] }
 alloy-rpc-client = { version = "0.1", default-features = false }
 alloy-consensus = { version = "0.1", default-features = false, features = [
     "serde",
@@ -89,6 +191,7 @@ alloy-provider = { version = "0.1", default-features = false, features = [
 ] }
 alloy-transport-http = { version = "0.1", default-features = false, features = [
     "reqwest",
+    "reqwest-rustls-tls",
 ] }
 alloy-signer = { version = "0.1", default-features = false }
 alloy-signer-local = { version = "0.1", default-features = false }
@@ -139,7 +242,7 @@ utoipa = { version = "4.2.0", features = ["axum_extras"] }
 structopt = "0.3.24"
 prometheus = { version = "0.13.3", features = ["process"] }
 tokio = { version = "^1.23", features = ["full"] }
-tokio-util = { version = "0.7.11" }
+tokio-util = { version = "0.7.11", features = ["codec"] }
 reqwest = { version = "0.11.22", features = ["json"] }
 url = "2.5.0"
 async-trait = "0.1.80"
@@ -189,10 +292,134 @@ pathdiff = "0.2.1"
 dotenv = "0.15.0"
 backoff = "0.4.0"
 
+############################################
+
+
+# revm
+revm = { version = "9.0.0", features = [
+    "std",
+    "secp256k1",
+    "blst",
+], default-features = false }
+revm-primitives = { version = "4.0.0", features = [
+    "std",
+], default-features = false }
+revm-precompile = { version = "7.0.0", features = [
+    "std",
+], default-features = false }
+revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "4fe17f0" }
+
+# eth
+alloy-trie = "0.4"
+alloy-rpc-types-anvil = { version = "0.1", default-features = false }
+alloy-rpc-types-beacon = { version = "0.1", default-features = false }
+alloy-rpc-types-admin = { version = "0.1", default-features = false }
+alloy-rpc-types-txpool = { version = "0.1", default-features = false }
+alloy-serde = { version = "0.1", default-features = false }
+alloy-rpc-types-engine = { version = "0.1", default-features = false }
+alloy-rpc-types-eth = { version = "0.1", default-features = false }
+alloy-rpc-types-trace = { version = "0.1", default-features = false }
+alloy-genesis = { version = "0.1", default-features = false }
+alloy-node-bindings = { version = "0.1", default-features = false }
+alloy-transport-ws = { version = "0.1", default-features = false }
+alloy-transport-ipc = { version = "0.1", default-features = false }
+alloy-pubsub = { version = "0.1", default-features = false }
+alloy-json-rpc = { version = "0.1", default-features = false }
+
+# misc
+auto_impl = "1"
+aquamarine = "0.5"
+bytes = "1.5"
+bitflags = "2.4"
+derive_more = "0.99.17"
+fdlimit = "0.3.0"
+eyre = "0.6"
+generic-array = "0.14"
+linked_hash_set = "0.1"
+humantime = "2.1"
+humantime-serde = "1.1"
+rustc-hash = "1.1.0"
+schnellru = "0.2"
+strum = "0.26"
+rayon = "1.7"
+itertools = "0.12"
+parking_lot = "0.12"
+modular-bitfield = "0.11.2"
+nybbles = "0.2.1"
+smallvec = "1"
+dyn-clone = "1.0.17"
+paste = "1.0"
+backon = "0.4"
+
+# metrics
+metrics = "0.22.0"
+metrics-exporter-prometheus = { version = "0.14.0", default-features = false }
+metrics-util = "0.16.0"
+metrics-process = "2.0.0"
+
+# tokio
+tokio-stream = "0.1.11"
+
+# async
+async-stream = "0.3"
+futures = "0.3"
+futures-util = "0.3"
+futures-core = "0.3"
+pin-project = "1.0.12"
+hyper = "1.3"
+hyper-util = "0.1.5"
+
+# p2p
+discv5 = "0.6.0"
+igd-next = "0.14.3"
+
+# rpc
+jsonrpsee = "0.23"
+jsonrpsee-core = "0.23"
+jsonrpsee-types = "0.23"
+jsonrpsee-http-client = "0.23"
+
+# http
+http = "1.0"
+http-body = "1.0"
+jsonwebtoken = "9"
+
+# crypto
+# TODO: Remove `k256` feature: https://github.com/sigp/enr/pull/74
+enr = { version = "0.12.0", default-features = false, features = [
+    "k256",
+    "rust-secp256k1",
+] }
+
+# for eip-4844
+c-kzg = "1.0.0"
+
+# config
+confy = "0.6"
+toml = "0.8"
+
+# misc-testing
+arbitrary = "1.3"
+assert_matches = "1.5.0"
+criterion = "0.5"
+pprof = "0.13"
+proptest-derive = "0.4"
+serial_test = "3"
+similar-asserts = "1.5.0"
+test-fuzz = "5"
+
 [patch.crates-io]
-revm = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
+revm = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko", default-features = false, features = [
+    "std",
+    "serde",
+    "taiko",
+    "secp256k1",
+    "blst",
+]}
 revm-primitives = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
 revm-precompile = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
 secp256k1 = { git = "https://github.com/CeciliaZ030/rust-secp256k1", branch = "sp1-patch" }
 blst = { git = "https://github.com/CeciliaZ030/blst.git", branch = "v0.3.12-serialize" }
 alloy-serde = { git = "https://github.com/CeciliaZ030/alloy.git", branch = "v0.1.4-fix" }
+revm-interpreter = { git = "https://github.com/taikoxyz/revm.git", branch = "v36-taiko" }
+c-kzg = { git = "https://github.com/brechtpd/c-kzg-4844", branch = "for-alpha7" }

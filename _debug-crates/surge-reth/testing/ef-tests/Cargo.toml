@@ -1,0 +1,44 @@
+[package]
+name = "ef-tests"
+version.workspace = true
+description = "EF testing support for reth."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+ef-tests = []
+asm-keccak = ["reth-primitives/asm-keccak"]
+
+[dependencies]
+reth-chainspec.workspace = true
+reth-primitives.workspace = true
+reth-db = { workspace = true, features = ["mdbx", "test-utils", "disable-lock"] }
+reth-db-api.workspace = true
+reth-provider = { workspace = true, features = ["test-utils"] }
+reth-stages.workspace = true
+reth-evm-ethereum.workspace = true
+reth-revm.workspace = true
+reth-node-ethereum.workspace = true
+reth-rpc-types-compat.workspace = true
+reth-rpc-types.workspace = true
+reth-rpc.workspace = true
+reth-transaction-pool = { workspace = true, features = ["test-utils"] }
+reth-network-api.workspace = true
+reth-tasks = { workspace = true }
+
+alloy-rlp.workspace = true
+
+walkdir = "2.3.3"
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+rayon.workspace = true
+
+# raiko
+anyhow.workspace = true

@@ -1,0 +1,98 @@
+[package]
+name = "reth-db"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Database primitives used in reth."
+
+[lints]
+workspace = true
+
+[dependencies]
+# reth
+reth-db-api.workspace = true
+reth-primitives.workspace = true
+reth-fs-util.workspace = true
+reth-storage-errors.workspace = true
+reth-libmdbx = { workspace = true, optional = true, features = [
+    "return-borrowed",
+    "read-tx-timeouts",
+] }
+reth-nippy-jar = { workspace = true, optional = true }
+reth-prune-types.workspace = true
+reth-stages-types.workspace = true
+reth-tracing.workspace = true
+reth-trie-common.workspace = true
+
+# codecs
+serde = { workspace = true, default-features = false }
+
+# metrics
+reth-metrics.workspace = true
+metrics.workspace = true
+
+# misc
+bytes.workspace = true
+page_size = { version = "0.6.0", optional = true }
+thiserror.workspace = true
+tempfile = { workspace = true, optional = true }
+derive_more.workspace = true
+eyre.workspace = true
+paste.workspace = true
+rustc-hash.workspace = true
+sysinfo = { version = "0.30", default-features = false }
+
+# arbitrary utils
+strum = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+# reth libs with arbitrary
+reth-primitives = { workspace = true, features = ["arbitrary"] }
+rand.workspace = true
+serde_json.workspace = true
+
+tempfile.workspace = true
+test-fuzz.workspace = true
+
+pprof = { workspace = true, features = [
+    "flamegraph",
+    "frame-pointer",
+    "criterion",
+] }
+criterion.workspace = true
+iai-callgrind = "0.10.2"
+
+arbitrary = { workspace = true, features = ["derive"] }
+proptest.workspace = true
+
+paste.workspace = true
+
+assert_matches.workspace = true
+
+[features]
+default = ["mdbx"]
+test-utils = ["tempfile", "arbitrary"]
+mdbx = ["reth-libmdbx", "not-zkvm"]
+bench = []
+arbitrary = ["reth-primitives/arbitrary", "reth-db-api/arbitrary"]
+optimism = []
+disable-lock = []
+not-zkvm = ["reth-nippy-jar", "page_size"]
+
+[[bench]]
+name = "hash_keys"
+required-features = ["test-utils"]
+harness = false
+
+[[bench]]
+name = "criterion"
+required-features = ["test-utils"]
+harness = false
+
+[[bench]]
+name = "iai"
+required-features = ["test-utils"]
+harness = false
