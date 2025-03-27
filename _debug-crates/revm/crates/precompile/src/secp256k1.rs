@@ -10,7 +10,7 @@ pub const ECRECOVER: PrecompileWithAddress = PrecompileWithAddress(
 mod secp256k1_zk {
     use crate::zk_op::{self, ZkOperation};
     use crate::Error;
-    use revm_primitives::{alloy_primitives::B512, B256};
+    use revm_primitives::{alloy_primitives::B512, PrecompileError, B256};
 
     pub(crate) fn ecrecover(sig: &B512, recid: u8, msg: &B256) -> Result<B256, Error> {
         #[cfg(feature = "sp1-cycle-tracker")]
@@ -23,7 +23,9 @@ mod secp256k1_zk {
                 .secp256k1_ecrecover(sig, recid, msg)
                 .map(Into::<B256>::into)
         } else {
-            super::secp256k1::ecrecover(sig, recid, msg).map_err(|e| Error::Other(e.to_string()))
+            // super::secp256k1::ecrecover(sig, recid, msg).map_err(|e| Error::Other(e.to_string()))
+            println!("=== ecrecover: Secp256k1 is not in the zk_op!");
+            return Err(PrecompileError::Other("ecrecover: Secp256k1 is not in the zk_op!".to_owned()));
         };
         #[cfg(feature = "sp1-cycle-tracker")]
         println!("cycle-tracker-end: ecrecover");
